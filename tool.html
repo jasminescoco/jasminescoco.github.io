@@ -1,0 +1,761 @@
+<!DOCTYPE html contenteditable="true">
+<!-- 这是一个带有搜索功能的工具库网站 -->
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人知识库</title>
+    <script>
+        // 页面加载时从localStorage恢复数据
+        window.onload = function() {
+            if(localStorage.getItem('siteData')) {
+                const savedData = JSON.parse(localStorage.getItem('siteData'));
+                // 恢复标签
+                if(savedData.tags) {
+                    document.getElementById('tagsContainer').innerHTML = savedData.tags;
+                }
+                // 恢复卡片
+                if(savedData.cards) {
+                    document.getElementById('cardGrid').innerHTML = savedData.cards;
+                }
+                // 从卡片中提取所有标签并更新标签系统
+                updateTagSystem();
+            }
+        }
+
+        // 保存数据到localStorage的函数
+        function saveToLocalStorage() {
+            const siteData = {
+                tags: document.getElementById('tagsContainer').innerHTML,
+                cards: document.getElementById('cardGrid').innerHTML
+            };
+            localStorage.setItem('siteData', JSON.stringify(siteData));
+        }
+
+        // 更新标签系统
+        function updateTagSystem() {
+            const cards = document.querySelectorAll('.card');
+            const tagSet = new Set();
+            
+            // 收集所有卡片中的标签
+            cards.forEach(card => {
+                const tag = card.getAttribute('data-tag');
+                if(tag) tagSet.add(tag);
+            });
+
+            // 更新标签容器
+            const tagsContainer = document.getElementById('tagsContainer');
+            const existingTags = new Set(Array.from(tagsContainer.querySelectorAll('.tag'))
+                .map(tag => tag.textContent.trim()));
+
+            // 添加新标签
+            tagSet.forEach(tag => {
+                if(!existingTags.has(tag)) {
+                    const newTag = document.createElement('div');
+                    newTag.className = 'tag';
+                    newTag.innerHTML = `
+                        ${tag}
+                        <div class="tag-actions">
+                            <i class="fas fa-edit" onclick="editTag(this)" title="编辑标签"></i>
+                            <i class="fas fa-trash" onclick="deleteTag(this)" title="删除标签"></i>
+                        </div>
+                    `;
+                    tagsContainer.appendChild(newTag);
+                }
+            });
+        }
+
+        // 在任何修改后调用保存函数
+        const observer = new MutationObserver(function(mutations) {
+            saveToLocalStorage();
+            updateTagSystem();
+        });
+
+        // 监视DOM变化
+        window.addEventListener('DOMContentLoaded', function() {
+            observer.observe(document.getElementById('tagsContainer'), { 
+                childList: true, 
+                subtree: true,
+                characterData: true
+            });
+            observer.observe(document.getElementById('cardGrid'), {
+                childList: true,
+                subtree: true, 
+                characterData: true
+            });
+        });
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+
+        .navbar {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background-color: #222;
+            padding: 1rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-logo {
+            color: #fff;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .nav-links a {
+            color: #fff;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: #999;
+        }
+		#ab{ 
+			color: #999;			
+		}
+        .main-content {
+            max-width: 1200px;
+            margin: 80px auto 0;
+            padding: 2rem;
+        }
+
+        .search-container {
+            margin-bottom: 2rem;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 1rem;
+            border: none;
+            border-radius: 5px;
+            background-color: #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .tags-container {
+            margin-bottom: 2rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .tag {
+            display: inline-block;
+		    padding: 0.8rem 1rem;
+            background-color: #333;
+            color: #fff;
+            border-radius: 20px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .tag:hover {
+            background-color: #555;
+        }
+
+        .tag.active {
+            background-color: #666;
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .card {
+            background-color: #fff;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .card-content {
+            display: none;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #eee;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .card:hover .card-content {
+            display: block;
+            opacity: 1;
+        }
+
+        .link-list {
+            list-style: none;
+        }
+
+        .link-list li {
+            margin: 0.5rem 0;
+        }
+
+        .link-list a {
+            color: #333;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .link-list a:hover {
+            color: #666;
+        }
+
+        @media (hover: none) {
+            .card-content {
+                display: block;
+                opacity: 1;
+            }
+
+            .card:hover {
+                transform: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">个人知识库</div>
+            <div class="nav-links">
+                <a href="index.html" >首页</a>
+                <p id="ab">工具网站</p>
+                <a href="article.html">知识文章</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="search-container">
+            <input type="text" class="search-input" placeholder="搜索内容..." id="searchInput">
+        </div>
+
+        <div class="tags-container" id="tagsContainer">
+            <span class="tag active">全部
+            </span>
+            <span class="tag">日常
+                <div class="tag-actions">
+                    <i class="fas fa-edit" onclick="editTagText(this.parentElement.parentElement)" title="编辑标签"></i>
+                    <i class="fas fa-trash" onclick="deleteTag(this)" title="删除标签"></i>
+                </div>
+            </span>
+            <span class="tag">专业
+                <div class="tag-actions">
+                    <i class="fas fa-edit" onclick="editTagText(this.parentElement.parentElement)" title="编辑标签"></i>
+                    <i class="fas fa-trash" onclick="deleteTag(this)" title="删除标签"></i>
+                </div>
+            </span>
+            <span class="tag">AI
+                <div class="tag-actions">
+                    <i class="fas fa-edit" onclick="editTagText(this.parentElement.parentElement)" title="编辑标签"></i>
+                    <i class="fas fa-trash" onclick="deleteTag(this)" title="删除标签"></i>
+                </div>
+            </span>
+            <span class="tag-add" title="添加新标签"><i class="fas fa-plus" onclick="addTag()"></i></span>
+        </div>
+
+        <div class="card-grid" id="cardGrid">
+            <div class="card" data-tag="日常" draggable="true">
+                <div class="card-header">
+                    <h2>日常使用</h2>
+                    <div class="card-actions">
+                        <i class="fas fa-edit" onclick="editCardTitle(this.parentElement.previousElementSibling)" title="编辑卡片"></i>
+                        <i class="fas fa-trash" onclick="deleteCard(this)" title="删除卡片"></i>
+                        <i class="fas fa-grip-lines" title="拖动排序"></i>
+                    </div>
+                </div>
+                <p>常用网站的集合</p>
+                <div class="card-content">
+                    <ul class="link-list">
+                        <li>
+                            <a href="https://www.bilibili.com" target="_blank">哔哩哔哩</a>
+                            <div class="link-actions">
+                                <i class="fas fa-edit" onclick="editLinkText(this.parentElement.previousElementSibling)" title="编辑链接"></i>
+                                <i class="fas fa-trash" onclick="deleteLink(this)" title="删除链接"></i>
+                            </div>
+                        </li>
+                    </ul>
+                    <div class="link-add" title="添加新链接"><i class="fas fa-plus" onclick="addLink(this)"></i> 添加链接</div>
+                </div>
+            </div>
+
+            <div class="card" data-tag="专业" draggable="true">
+                <div class="card-header">
+                    <h2>学习</h2>
+                    <div class="card-actions">
+                        <i class="fas fa-edit" onclick="editCardTitle(this.parentElement.previousElementSibling)" title="编辑卡片"></i>
+                        <i class="fas fa-trash" onclick="deleteCard(this)" title="删除卡片"></i>
+                        <i class="fas fa-grip-lines" title="拖动排序"></i>
+                    </div>
+                </div>
+                <p>学习资源和工具</p>
+                <div class="card-content">
+                    <ul class="link-list">
+                        <li>
+                            <a href="http://w3cschool.xznaqushi.com/" target="_blank">菜鸟教程</a>
+                            <div class="link-actions">
+                                <i class="fas fa-edit" onclick="editLinkText(this.parentElement.previousElementSibling)" title="编辑链接"></i>
+                                <i class="fas fa-trash" onclick="deleteLink(this)" title="删除链接"></i>
+                            </div>
+                        </li>
+                        <li>
+                            <a href="https://www.cnki.net/" target="_blank">中国知网</a>
+                            <div class="link-actions">
+                                <i class="fas fa-edit" onclick="editLinkText(this.parentElement.previousElementSibling)" title="编辑链接"></i>
+                                <i class="fas fa-trash" onclick="deleteLink(this)" title="删除链接"></i>
+                            </div>
+                        </li>
+                        <li>
+                            <a href="http://mail.stumail.nwu.edu.cn/" target="_blank">西北大学学生邮箱</a>
+                            <div class="link-actions">
+                                <i class="fas fa-edit" onclick="editLinkText(this.parentElement.previousElementSibling)" title="编辑链接"></i>
+                                <i class="fas fa-trash" onclick="deleteLink(this)" title="删除链接"></i>
+                            </div>
+                        </li>
+						<li>
+                            <a href="https://www.nwu.edu.cn/">西北大学官网</a>
+                            <div class="link-actions">
+                                <i class="fas fa-edit" onclick="editLinkText(this.parentElement.previousElementSibling)" title="编辑链接"></i>
+                                <i class="fas fa-trash" onclick="deleteLink(this)" title="删除链接"></i>
+                            </div>
+                        </li>
+						 <li>
+                            <a href="https://mail.qq.com/cgi-bin/frame_html?sid=QpYquWLmT2oLsyFG&r=7d55e7ab1439feeb7d16d821437ff38c" target="_blank">QQ邮箱</a>
+                            <div class="link-actions">
+                                <i class="fas fa-edit" onclick="editLinkText(this.parentElement.previousElementSibling)" title="编辑链接"></i>
+                                <i class="fas fa-trash" onclick="deleteLink(this)" title="删除链接"></i>
+                            </div>
+                        </li>
+                    </ul>
+                    <div class="link-add" title="添加新链接"><i class="fas fa-plus" onclick="addLink(this)"></i> 添加链接</div>
+                </div>
+            </div>
+
+            <div class="card" data-tag="AI" draggable="true">
+                <div class="card-header">
+                    <h2>AI工具</h2>
+                    <div class="card-actions">
+                        <i class="fas fa-edit" onclick="editCardTitle(this.parentElement.previousElementSibling)" title="编辑卡片"></i>
+                        <i class="fas fa-trash" onclick="deleteCard(this)" title="删除卡片"></i>
+                        <i class="fas fa-grip-lines" title="拖动排序"></i>
+                    </div>
+                </div>
+                <p>人工智能相关工具</p>
+                <div class="card-content">
+                    <ul class="link-list">
+						 <li>
+                            <a href="https://www.yjpoo.com/site/3519.html" target="_blank">OpenRouter</a>
+                            <div class="link-actions">
+                                <i class="fas fa-edit" onclick="editLinkText(this.parentElement.previousElementSibling)" title="编辑链接"></i>
+                                <i class="fas fa-trash" onclick="deleteLink(this)" title="删除链接"></i>
+                            </div>
+                        </li>
+                        <li>
+                            <a href="https://kimi.moonshot.cn/" target="_blank">Kimi</a>
+                            <div class="link-actions">
+                                <i class="fas fa-edit" onclick="editLinkText(this.parentElement.previousElementSibling)" title="编辑链接"></i>
+                                <i class="fas fa-trash" onclick="deleteLink(this)" title="删除链接"></i>
+                            </div>
+                        </li>
+                        <li>
+                            <a href="https://www.doubao.com/chat/" target="_blank">豆包</a>
+                            <div class="link-actions">
+                                <i class="fas fa-edit" onclick="editLinkText(this.parentElement.previousElementSibling)" title="编辑链接"></i>
+                                <i class="fas fa-trash" onclick="deleteLink(this)" title="删除链接"></i>
+                            </div>
+                        </li>
+                        <li>
+                            <a href="https://bolt.new/" target="_blank">bolt</a>
+                            <div class="link-actions">
+                                <i class="fas fa-edit" onclick="editLinkText(this.parentElement.previousElementSibling)" title="编辑链接"></i>
+                                <i class="fas fa-trash" onclick="deleteLink(this)" title="删除链接"></i>
+                            </div>
+                        </li>
+                        <li>
+                            <a href="https://www.doyoudo.com/resources" target="_blank">doyoudo设计资源</a>
+                            <div class="link-actions">
+                                <i class="fas fa-edit" onclick="editLinkText(this.parentElement.previousElementSibling)" title="编辑链接"></i>
+                                <i class="fas fa-trash" onclick="deleteLink(this)" title="删除链接"></i>
+                            </div>
+                        </li>
+                    </ul>
+                    <div class="link-add" title="添加新链接"><i class="fas fa-plus" onclick="addLink(this)"></i> 添加链接</div>
+                </div>
+            </div>
+
+            <div class="card" data-tag="专业" draggable="true">
+                <div class="card-header">
+                    <h2>效率</h2>
+                    <div class="card-actions">
+                        <i class="fas fa-edit" onclick="editCardTitle(this.parentElement.previousElementSibling)" title="编辑卡片"></i>
+                        <i class="fas fa-trash" onclick="deleteCard(this)" title="删除卡片"></i>
+                        <i class="fas fa-grip-lines" title="拖动排序"></i>
+                    </div>
+                </div>
+                <p>提升工作效率的工具</p>
+                <div class="card-content">
+                    <ul class="link-list">
+                        <li>
+                            <a href="https://kimi.moonshot.cn/" target="_blank">Kimi</a>
+                            <div class="link-actions">
+                                <i class="fas fa-edit" onclick="editLinkText(this.parentElement.previousElementSibling)" title="编辑链接"></i>
+                                <i class="fas fa-trash" onclick="deleteLink(this)" title="删除链接"></i>
+                            </div>
+                        </li>
+                        <li>
+                            <a href="https://www.doubao.com/chat/" target="_blank">豆包</a>
+                            <div class="link-actions">
+                                <i class="fas fa-edit" onclick="editLinkText(this.parentElement.previousElementSibling)" title="编辑链接"></i>
+                                <i class="fas fa-trash" onclick="deleteLink(this)" title="删除链接"></i>
+                            </div>
+                        </li>
+                        <li>
+                            <a href="https://bolt.new/" target="_blank">bolt</a>
+                            <div class="link-actions">
+                                <i class="fas fa-edit" onclick="editLinkText(this.parentElement.previousElementSibling)" title="编辑链接"></i>
+                                <i class="fas fa-trash" onclick="deleteLink(this)" title="删除链接"></i>
+                            </div>
+                        </li>
+                        <li>
+                            <a href="https://www.doyoudo.com/resources" target="_blank">doyoudo设计资源</a>
+                            <div class="link-actions">
+                                <i class="fas fa-edit" onclick="editLinkText(this.parentElement.previousElementSibling)" title="编辑链接"></i>
+                                <i class="fas fa-trash" onclick="deleteLink(this)" title="删除链接"></i>
+                            </div>
+                        </li>
+                    </ul>
+                    <div class="link-add" title="添加新链接"><i class="fas fa-plus" onclick="addLink(this)"></i> 添加链接</div>
+                </div>
+            </div>
+
+            <div class="card-add" title="添加新卡片">
+                <i class="fas fa-plus" onclick="addCard()"></i>
+                <span>添加新卡片</span>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // 引入Font Awesome图标
+        const fontAwesome = document.createElement('link');
+        fontAwesome.rel = 'stylesheet';
+        fontAwesome.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css';
+        document.head.appendChild(fontAwesome);
+
+        const searchInput = document.getElementById('searchInput');
+        const tagsContainer = document.getElementById('tagsContainer');
+        const cards = document.querySelectorAll('.card');
+        const tags = document.querySelectorAll('.tag');
+
+        // 添加悬停显示操作图标的样式
+        const style = document.createElement('style');
+        style.textContent = `
+            .tag-actions, .card-actions, .link-actions {
+                display: none;
+                opacity: 0;
+                transition: opacity 0.3s;
+                margin-left: 0.5rem;
+            }
+            
+            .tag:hover .tag-actions,
+            .card-header:hover .card-actions,
+            .link-list li:hover .link-actions {
+                display: inline-block;
+                opacity: 1;
+                transition-delay: 2s;
+            }
+            
+            .fas {
+                cursor: pointer;
+                margin: 0 0.2rem;
+            }
+            
+            .card-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            
+            .link-list li {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            
+            .card-add, .link-add, .tag-add {
+                cursor: pointer;
+                text-align: center;
+                padding: 1rem;
+                border: 2px dashed #ccc;
+                border-radius: 10px;
+                transition: all 0.3s;
+            }
+            
+            .card-add:hover, .link-add:hover, .tag-add:hover {
+                background-color: #f0f0f0;
+            }
+        `;
+        document.head.appendChild(style);
+
+        // 搜索功能
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            
+            cards.forEach(card => {
+                const cardTitle = card.querySelector('h2').textContent.toLowerCase();
+                const cardDesc = card.querySelector('p').textContent.toLowerCase();
+                const links = card.querySelectorAll('a');
+                let found = false;
+                
+                if (cardTitle.includes(searchTerm) || cardDesc.includes(searchTerm)) {
+                    found = true;
+                }
+                
+                links.forEach(link => {
+                    if (link.textContent.toLowerCase().includes(searchTerm)) {
+                        found = true;
+                    }
+                });
+                
+                card.style.display = found ? 'block' : 'none';
+            });
+        });
+
+        // 标签筛选功能
+        tags.forEach(tag => {
+            tag.addEventListener('click', function(e) {
+                if (!e.target.classList.contains('fas')) {
+                    const selectedTag = this.textContent.trim();
+                    
+                    tags.forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    cards.forEach(card => {
+                        if (selectedTag === '全部') {
+                            card.style.display = 'block';
+                        } else {
+                            const cardTag = card.dataset.tag;
+                            card.style.display = cardTag === selectedTag ? 'block' : 'none';
+                        }
+                    });
+                }
+            });
+        });
+
+        // 拖拽功能
+        cards.forEach(card => {
+            card.addEventListener('dragstart', handleDragStart);
+            card.addEventListener('dragend', handleDragEnd);
+            card.addEventListener('dragover', handleDragOver);
+            card.addEventListener('drop', handleDrop);
+        });
+
+        function handleDragStart(e) {
+            this.style.opacity = '0.4';
+            e.dataTransfer.setData('text/plain', this.dataset.tag);
+        }
+
+        function handleDragEnd(e) {
+            this.style.opacity = '1';
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            const draggedTag = e.dataTransfer.getData('text/plain');
+            const dropTarget = this;
+            
+            if (draggedTag !== dropTarget.dataset.tag) {
+                const cardGrid = document.getElementById('cardGrid');
+                const draggedCard = document.querySelector(`[data-tag="${draggedTag}"]`);
+                const dropTargetRect = dropTarget.getBoundingClientRect();
+                const dropTargetCenter = dropTargetRect.top + (dropTargetRect.height / 2);
+                
+                if (e.clientY < dropTargetCenter) {
+                    cardGrid.insertBefore(draggedCard, dropTarget);
+                } else {
+                    cardGrid.insertBefore(draggedCard, dropTarget.nextSibling);
+                }
+            }
+        }
+
+        // 编辑标签文本
+        function editTagText(element) {
+            const currentText = element.childNodes[0].textContent.trim();
+            const newText = prompt('请输入新的标签名称:', currentText);
+            if (newText !== null && newText.trim() !== '') {
+                element.childNodes[0].textContent = newText;
+            }
+        }
+
+        // 删除标签
+        function deleteTag(element) {
+            if (confirm('确定要删除这个标签吗?')) {
+                element.closest('.tag').remove();
+            }
+        }
+
+        // 添加标签
+        function addTag() {
+            const tagName = prompt('请输入新标签名称:');
+            if (tagName && tagName.trim() !== '') {
+                const newTag = document.createElement('span');
+                newTag.className = 'tag';
+                newTag.innerHTML = `${tagName}
+                    <div class="tag-actions">
+                        <i class="fas fa-edit" onclick="editTagText(this.parentElement.parentElement)" title="编辑标签"></i>
+                        <i class="fas fa-trash" onclick="deleteTag(this)" title="删除标签"></i>
+                    </div>`;
+                tagsContainer.insertBefore(newTag, document.querySelector('.tag-add'));
+            }
+        }
+
+        // 编辑卡片标题
+        function editCardTitle(element) {
+            const currentTitle = element.textContent;
+            const newTitle = prompt('请输入新的卡片标题:', currentTitle);
+            if (newTitle !== null && newTitle.trim() !== '') {
+                element.textContent = newTitle;
+            }
+        }
+
+        // 编辑卡片描述
+        function editCardDesc(element) {
+            const currentDesc = element.textContent;
+            const newDesc = prompt('请输入新的卡片描述:', currentDesc);
+            if (newDesc !== null && newDesc.trim() !== '') {
+                element.textContent = newDesc;
+            }
+        }
+
+        // 删除卡片
+        function deleteCard(element) {
+            if (confirm('确定要删除这个卡片吗?')) {
+                element.closest('.card').remove();
+            }
+        }
+
+        // 添加卡片
+        function addCard() {
+            const cardTitle = prompt('请输入卡片标题:');
+            if (cardTitle && cardTitle.trim() !== '') {
+                const cardDesc = prompt('请输入卡片描述:');
+                if (cardDesc !== null) {
+                    const newCard = document.createElement('div');
+                    newCard.className = 'card';
+                    newCard.setAttribute('data-tag', '新标签');
+                    newCard.setAttribute('draggable', 'true');
+                    
+                    newCard.innerHTML = `
+                        <div class="card-header">
+                            <h2>${cardTitle}</h2>
+                            <div class="card-actions">
+                                <i class="fas fa-edit" onclick="editCardTitle(this.parentElement.previousElementSibling)" title="编辑卡片"></i>
+                                <i class="fas fa-trash" onclick="deleteCard(this)" title="删除卡片"></i>
+                                <i class="fas fa-grip-lines" title="拖动排序"></i>
+                            </div>
+                        </div>
+                        <p>${cardDesc}</p>
+                        <div class="card-content">
+                            <ul class="link-list"></ul>
+                            <div class="link-add" title="添加新链接">
+                                <i class="fas fa-plus" onclick="addLink(this)"></i> 添加链接
+                            </div>
+                        </div>
+                    `;
+                    
+                    const cardGrid = document.getElementById('cardGrid');
+                    cardGrid.insertBefore(newCard, document.querySelector('.card-add'));
+                    
+                    // 添加拖拽事件监听器
+                    newCard.addEventListener('dragstart', handleDragStart);
+                    newCard.addEventListener('dragend', handleDragEnd);
+                    newCard.addEventListener('dragover', handleDragOver);
+                    newCard.addEventListener('drop', handleDrop);
+                }
+            }
+        }
+
+        // 编辑链接文本
+        function editLinkText(element) {
+            const currentText = element.textContent;
+            const currentUrl = element.href;
+            const newText = prompt('请输入新的链接文本:', currentText);
+            if (newText !== null && newText.trim() !== '') {
+                element.textContent = newText;
+                const newUrl = prompt('请输入新的链接地址:', currentUrl);
+                if (newUrl !== null && newUrl.trim() !== '') {
+                    element.href = newUrl;
+                }
+            }
+        }
+
+        // 删除链接
+        function deleteLink(element) {
+            if (confirm('确定要删除这个链接吗?')) {
+                element.closest('li').remove();
+            }
+        }
+
+        // 添加链接
+        function addLink(element) {
+            const linkText = prompt('请输入链接文本:');
+            if (linkText && linkText.trim() !== '') {
+                const linkUrl = prompt('请输入链接地址:');
+                if (linkUrl && linkUrl.trim() !== '') {
+                    const newLink = document.createElement('li');
+                    newLink.innerHTML = `
+                        <a href="${linkUrl}" target="_blank">${linkText}</a>
+                        <div class="link-actions">
+                            <i class="fas fa-edit" onclick="editLinkText(this.parentElement.previousElementSibling)" title="编辑链接"></i>
+                            <i class="fas fa-trash" onclick="deleteLink(this)" title="删除链接"></i>
+                        </div>
+                    `;
+                    
+                    const linkList = element.closest('.card-content').querySelector('.link-list');
+                    linkList.appendChild(newLink);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
+
